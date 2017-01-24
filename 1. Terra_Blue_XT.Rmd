@@ -19,9 +19,9 @@ output: html_notebook
 
 ```{r,echo=FALSE, warning=FALSE}
 library(lubridate)
-# Terra_Blue_XT_Input <- 
-#   read.table("H:/Yashwanth/Learnings/Terra Blue XT/opensignals_000780589BB3_2016-04-02_22-21-24.txt",
-#                             sep = "\t", header = FALSE)
+Terra_Blue_XT_Input <- 
+  read.table("H:/Yashwanth/Learnings/Terra Blue XT/opensignals_000780589BB3_2016-04-02_22-21-24.txt",
+                            sep = "\t", header = FALSE)
 Terra_Blue_XT <- Terra_Blue_XT_Input
 Terra_Blue_XT$V1 <- NULL
 Terra_Blue_XT$V2 <- NULL
