@@ -2,8 +2,8 @@
 
 ### Price Elasticity Model
 
-* TerraBlueXT.Rmd is an R-Notebook file which contains R-coding(script).
-* Price Elasticity Model Simulation.xlsx is a simulation file uses model coefficients to estimate the optimum/recommended price.
+* TerraBlueXT.Rmd is an R-Notebook file which contains R-coding(script)
+* Price Elasticity Model Simulation.xlsx is a simulation file uses model coefficients to estimate the optimum/recommended price
 * Complete report is published on R-pubs [click here](http://rpubs.com/YashwanthRPubs/TerraBlueXT)
 
 ### Additional Information
