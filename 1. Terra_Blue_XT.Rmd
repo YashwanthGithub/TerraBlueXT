@@ -1,0 +1,290 @@
+---
+title: "Price Elasticity Model"
+output: html_notebook
+---
+
+### **Assumptions**
+* Assume a retailer is skeptical about pricing his product due to heavy traffic & competition exists in the market
+* Retailer expects the Data-Scientist to enlist recommendations(optimum price) to price his products. Lets say "DSLR-Camera"
+* Lets consider the un-named columns as "Sales units","Own Price","Competitor-1 price","Competitor-2 price"
+* Dependent variable as "Sales" and Independent variables as "Own Price","Competitor-1 price","Competitor-2 price"
+
+---
+
+### **Research question : Retailer wants to optimize his price based on the existing competition**
+
+#### **Hypothesis: Is there any significant relationship between Sales & other variables**
+##### 	Null Hypothesis: There is NO significant relationship between Sales & other variables
+##### 	Alternate Hypothesis: There is significant relationship between Sales & other variables
+
+```{r,echo=FALSE, warning=FALSE}
+library(lubridate)
+# Terra_Blue_XT_Input <- 
+#   read.table("H:/Yashwanth/Learnings/Terra Blue XT/opensignals_000780589BB3_2016-04-02_22-21-24.txt",
+#                             sep = "\t", header = FALSE)
+Terra_Blue_XT <- Terra_Blue_XT_Input
+Terra_Blue_XT$V1 <- NULL
+Terra_Blue_XT$V2 <- NULL
+Terra_Blue_XT$V7 <- NULL
+names(Terra_Blue_XT) <- c("sales","comp1_price","own_price","comp2_price")
+set.seed(4567)
+Terra_Blue_XT$Date <- (as.Date("2014-12-31") + sort(sample(1:365, nrow(Terra_Blue_XT),replace = TRUE)))
+Terra_Blue_XT$Week_num <- factor(week(Terra_Blue_XT$Date))
+Terra_Blue_XT$Item_no <- factor(sample(1:50, nrow(Terra_Blue_XT), replace = TRUE))
+Terra_Blue_XT <- Terra_Blue_XT[,c("Date","Week_num","Item_no","sales","own_price","comp1_price","comp2_price")]
+
+# Aggregate data on Weekly level
+library(data.table)
+Terra_Blue_XT <- data.table(Terra_Blue_XT)
+Terra_Blue_XT_Aggr <- Terra_Blue_XT[,.(sales=median(sales)), by=.(Week_num,Item_no)]
+Terra_Blue_XT_Aggr <- cbind(sales=Terra_Blue_XT_Aggr$sales,Terra_Blue_XT[,lapply(.SD,median),
+                            by=.(Week_num,Item_no), .SDcols = c("own_price","comp1_price","comp2_price")])
+Terra_Blue_XT_Aggr <- Terra_Blue_XT_Aggr[,c("Week_num","Item_no","sales","own_price","comp1_price","comp2_price")]
+Terra_Blue_XT_Aggr <- Terra_Blue_XT_Aggr[order(Terra_Blue_XT_Aggr$Week_num,Terra_Blue_XT_Aggr$Item_no),]
+Terra_Blue_XT_Aggr <- data.frame(Terra_Blue_XT_Aggr)
+Terra_Blue_XT_Aggr$row_id <- row.names(Terra_Blue_XT_Aggr)
+```
+
+---
+
+#### **Distribution of Variables : Histogram**
+* Exploratory data analysis to understand the distribution(normal/skewed) of variables
+
+```{r, echo=FALSE, warning=FALSE}
+library(ggplot2)
+attach(Terra_Blue_XT_Aggr)
+ggplot(Terra_Blue_XT_Aggr,aes(x=sales)) +
+  geom_histogram(aes(y=..density..),col = "blue2",bins = 40) +
+  stat_function(fun = dnorm,args = list(mean=mean(sales),sd=sd(sales)),colour = "red") +
+  labs(title = "Distribution of Sales Volume", x = "sales") +
+  theme(plot.title = element_text(hjust = 0.5))
+detach(Terra_Blue_XT_Aggr)
+```
+
+```{r, echo=FALSE, warnings=FALSE}
+library(psych)
+print(describe(Terra_Blue_XT_Aggr$sales))
+```
+
+
+##### **Insigths**
+* Distribution of Sales Volume is right skewed by 2.17. Higher sales volume of camera has lower density
+
+---
+
+```{r, echo=FALSE, warning=FALSE}
+library(ggplot2)
+attach(Terra_Blue_XT_Aggr)
+ggplot(Terra_Blue_XT_Aggr,aes(x=own_price)) +
+  geom_histogram(aes(y=..density..),col = "blue2",bins = 40) +
+  stat_function(fun = dnorm,args = list(mean=mean(own_price),sd=sd(own_price)),colour = "red") +
+  labs(title = "Distribution of Own Price", x = "Own Price") +
+  theme(plot.title = element_text(hjust = 0.5))
+detach(Terra_Blue_XT_Aggr)
+```
+
+
+```{r, echo=FALSE, warnings=FALSE}
+library(psych)
+print(describe(Terra_Blue_XT_Aggr$own_price))
+```
+
+##### **Insigths**
+* Distribution of Own price is normally distributed. Prices of camera is symmetric
+
+---
+
+```{r, echo=FALSE, warning=FALSE}
+library(ggplot2)
+attach(Terra_Blue_XT_Aggr)
+ggplot(Terra_Blue_XT_Aggr,aes(x=comp1_price)) +
+  geom_histogram(aes(y=..density..),col = "blue2",bins = 40) +
+  stat_function(fun = dnorm,args = list(mean=mean(comp1_price),sd=sd(comp1_price)),colour = "red") +
+  labs(title = "Distribution of Comp1 Price", x = "Comp1 Price") +
+  theme(plot.title = element_text(hjust = 0.5))
+detach(Terra_Blue_XT_Aggr)
+```
+
+```{r, echo=FALSE, warnings=FALSE}
+library(psych)
+print(describe(Terra_Blue_XT_Aggr$comp1_price))
+```
+
+##### **Insigths**
+* Distribution of Comp1 price is left skewed by -3.76. Lower price of camera has lower density
+
+---
+
+```{r, echo=FALSE, warning=FALSE}
+library(ggplot2)
+attach(Terra_Blue_XT_Aggr)
+ggplot(Terra_Blue_XT_Aggr,aes(x=comp2_price)) +
+  geom_histogram(aes(y=..density..),col = "blue2",bins = 40) +
+  stat_function(fun = dnorm,args = list(mean=mean(comp2_price),sd=sd(comp2_price)),colour = "red") +
+  labs(title = "Distribution of Comp2 Price", x = "Comp2 Price") +
+  theme(plot.title = element_text(hjust = 0.5))
+detach(Terra_Blue_XT_Aggr)
+```
+
+```{r, echo=FALSE, warnings=FALSE}
+library(psych)
+print(describe(Terra_Blue_XT_Aggr$comp2_price))
+```
+
+##### **Insigths**
+* Distribution of Comp2 price is normally disributes. Comp2 Prices of camera is symmetric
+
+---
+
+
+#### **Distribution of Variables(Transformation) : Histogram**
+```{r, echo=FALSE, warning=FALSE}
+Terra_Blue_XT_Aggr$sal_std <- ceiling(ifelse(Terra_Blue_XT_Aggr$sales>(3*IQR(Terra_Blue_XT_Aggr$sales)),
+                                     mean(Terra_Blue_XT_Aggr$sales),Terra_Blue_XT_Aggr$sales))
+attach(Terra_Blue_XT_Aggr)
+ggplot(Terra_Blue_XT_Aggr,aes(x=sal_std)) +
+  geom_histogram(aes(y=..density..),col = "blue2",bins = 60) +
+  stat_function(fun = dnorm,args = list(mean=mean(sal_std),sd=sd(sal_std)),colour = "red") +
+  labs(title = "Distribution of Sales Volume", x = "sales") +
+  theme(plot.title = element_text(hjust = 0.5))
+detach(Terra_Blue_XT_Aggr)
+```
+
+```{r, echo=FALSE, warnings=FALSE}
+print(describe(Terra_Blue_XT_Aggr$sal_std))
+```
+
+##### **Insigths**
+* Distribution of Sales Volume volume is normally disributed. Transformation successful.
+
+---
+
+```{r, echo=FALSE, warning=FALSE}
+Terra_Blue_XT_Aggr$comp1_price_std <- ifelse(Terra_Blue_XT_Aggr$comp1_price<as.numeric(paste0(quantile(Terra_Blue_XT_Aggr$comp1_price)[2]))-225,
+                                     mean(Terra_Blue_XT_Aggr$comp1_price),Terra_Blue_XT_Aggr$comp1_price)
+attach(Terra_Blue_XT_Aggr)
+ggplot(Terra_Blue_XT_Aggr,aes(x=comp1_price_std)) +
+  geom_histogram(aes(y=..density..),col = "blue2",bins = 60) +
+  stat_function(fun = dnorm,args = list(mean=mean(comp1_price_std),sd=sd(comp1_price_std)),colour = "red") +
+  labs(title = "Distribution of Comp1 price", x = "Comp1 price") +
+  theme(plot.title = element_text(hjust = 0.5))
+detach(Terra_Blue_XT_Aggr)
+```
+
+```{r, echo=FALSE, warnings=FALSE}
+print(describe(Terra_Blue_XT_Aggr$comp1_price_std))
+```
+##### **Insigths**
+* Distribution of Comp1 price is normally disributed. Transformation successful.
+
+---
+
+#### **Relationship between Variables : Scatterplot**
+
+```{r, echo=FALSE, warnings=FALSE}
+attach(Terra_Blue_XT_Aggr)
+ggplot(Terra_Blue_XT_Aggr, aes(scale(own_price),scale(sal_std))) +
+  geom_point() +
+  geom_abline(color = "red") +
+  labs(title="Relationship between Sales & Own Price", 
+       x = "Own Price", y = "Sales") +
+  theme(plot.title = element_text(hjust = 0.5))
+detach(Terra_Blue_XT_Aggr)
+```
+
+##### **Insigths**
+* Sales volume & Own price are weekly negatively correlated
+
+---
+
+```{r, echo=FALSE, warnings=FALSE}
+attach(Terra_Blue_XT_Aggr)
+ggplot(Terra_Blue_XT_Aggr, aes(scale(comp1_price_std),scale(sal_std))) +
+  geom_point() +
+  geom_abline(color = "red") +
+  labs(title="Relationship between Sales & Comp1 Price", 
+       x = "Comp1 Price", y = "Sales") +
+  theme(plot.title = element_text(hjust = 0.5))
+detach(Terra_Blue_XT_Aggr)
+```
+##### **Insigths**
+* Sales volume & Comp1 price are fairly positively correlated
+
+---
+
+```{r, echo=FALSE, warnings=FALSE}
+attach(Terra_Blue_XT_Aggr)
+ggplot(Terra_Blue_XT_Aggr, aes(scale(comp2_price),scale(sal_std))) +
+  geom_point() +
+  geom_abline(color = "red") +
+  labs(title="Relationship between Sales & comp2_price", 
+       x = "Comp2 Price", y = "Sales") +
+  theme(plot.title = element_text(hjust = 0.5))
+detach(Terra_Blue_XT_Aggr)
+```
+##### **Insigths**
+* Sales volume & Comp2 price are weekly negatively correlated
+
+---
+
+#### **Relationship between Variables : Correlation Analysis** 
+
+```{r, echo=FALSE, warnings=FALSE}
+cor(Terra_Blue_XT_Aggr[sapply(Terra_Blue_XT_Aggr,is.numeric)])
+```
+
+---
+
+#### **Linear Regression**
+##### **Stratified Random Sampling**
+
+```{r, echo=FALSE, warnings=FALSE}
+library(sampling)
+Terra_Blue_XT_Aggr_FT <- data.frame(table(Terra_Blue_XT_Aggr$Week_num))
+Terra_Blue_XT_Aggr_FT$Per <- (Terra_Blue_XT_Aggr_FT$Freq/sum(Terra_Blue_XT_Aggr_FT$Freq))*100
+names(Terra_Blue_XT_Aggr_FT)[1] <- "Week_num"
+
+# Consider 70% of the data as sample
+Terra_Blue_XT_Aggr_FT$Strata_Size <- ceiling((Terra_Blue_XT_Aggr_FT$Freq*(ceiling((dim(Terra_Blue_XT_Aggr)[1]/100)*70)/sum(Terra_Blue_XT_Aggr_FT$Freq))))
+Terra_Blue_XT_Aggr_FT <- with(Terra_Blue_XT_Aggr_FT,Terra_Blue_XT_Aggr_FT[order(Strata_Size,decreasing = TRUE),])
+
+# Stratification
+Terra_Blue_XT_Aggr_Strata <- strata(Terra_Blue_XT_Aggr,c("Week_num"),
+                                          size = Terra_Blue_XT_Aggr_FT$Strata_Size, method = "srswor")
+Terra_Blue_XT_Aggr_StRS <- getdata(Terra_Blue_XT_Aggr,Terra_Blue_XT_Aggr_Strata)
+head(Terra_Blue_XT_Aggr_StRS)
+
+# Testing data
+library(sqldf)
+Terra_Blue_XT_Aggr_Test <- sqldf("select a.* from Terra_Blue_XT_Aggr a
+                                 left join Terra_Blue_XT_Aggr_StRS b on a.row_id=b.row_id
+                                 where b.row_id is NULL")
+Terra_Blue_XT_Aggr_Test$row_id <- NULL
+```
+
+---
+
+##### **Elasticity Model** 
+
+```{r, echo=FALSE, warnings=FALSE}
+# Linear Model
+summary(lm(log(sal_std) ~ log(own_price)+log(comp1_price_std)+log(comp2_price), data = Terra_Blue_XT_Aggr))
+par(mfrow = c(2,2))
+plot(lm(log(sales) ~ log(own_price)+log(comp1_price)+log(comp2_price), data = Terra_Blue_XT_Aggr))
+```
+
+---
+
+###### **Confidence Intervals** 
+
+```{r, echo=FALSE, warning=FALSE}
+confint(lm(log(sales) ~ log(own_price)+log(comp1_price)+log(comp2_price), data = Terra_Blue_XT_Aggr))
+```
+
+##### **Insights**
+* Since p<0.05, we reject Null Hypothesis & conclude that there is a significant relationship between Sales volume, Own price, Comp1 price and Comp2 price
+
+* Own Price, Comp1 price & Comp2 price has significant evidence in estimating sales volume.
+* ~32% of variation is explained by the model & has significant evidence in explaining it
+
+---
